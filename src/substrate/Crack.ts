@@ -2,14 +2,23 @@ import { random } from '../lib'
 import { ColorManager } from './ColorManager'
 // import SandPainter from './SandPainter'
 
+interface Position {
+  x: number
+  y: number
+}
+
 export default class Crack {
   public colorManager: ColorManager
-  public stageW: number
-  public stageH: number
+  public width: number
+  public height: number
   public makeCrack: () => void
+
   public x: number = 0
   public y: number = 0
-  public t: number = 0
+
+  public angle: number = 0
+
+  public done = false
 
   constructor(
     colorManager: ColorManager,
@@ -18,8 +27,8 @@ export default class Crack {
     makeCrack: () => void
   ) {
     this.colorManager = colorManager
-    this.stageW = width
-    this.stageH = height
+    this.width = width
+    this.height = height
     this.makeCrack = makeCrack
     this.findStart()
     // this.sp = new SandPainter(colors, stageW)
@@ -28,72 +37,74 @@ export default class Crack {
   findStart() {
     let px = 0
     let py = 0
-    let found = false
 
-    while (!found) {
-      px = random(0, this.stageW)
-      py = random(0, this.stageH)
-      found = this.colorManager.cGrid[py * this.stageW + px] < 10000
+    // find an existing marked point on which to begin
+    while (this.colorManager.crackGrid[py * this.width + px] === null) {
+      px = random(0, this.width)
+      py = random(0, this.height)
     }
 
     // start crack
-    let a = this.colorManager.cGrid[py * this.stageW + px]
 
-    if (random(0, 100) < 50) {
-      a -= 90 + random(-2, 2.1, true)
-    } else {
-      a += 90 + random(-2, 2.1, true)
-    }
-    this.startCrack(px, py, a)
-  }
+    // choose an angle perpendicular to the existing one at this point
+    const i = py * this.width + px
+    const existingAngle = this.colorManager.crackGrid[i] as number
+    const wobble = random(-2, 2, true)
+    const plusOrMinus = random(0, 1) * 2 - 1
+    this.angle = existingAngle + plusOrMinus * 90 + wobble
 
-  startCrack(x: number, y: number, t: number) {
-    const _dir = (t * Math.PI) / 180
-    this.x = x + 0.61 * Math.cos(_dir)
-    this.y = y + 0.61 * Math.sin(_dir)
-    this.t = t
+    const direction = (this.angle * Math.PI) / 180
+
+    const fuzz = 0.85
+    this.x = px + fuzz + Math.cos(direction)
+    this.y = py + fuzz + Math.sin(direction)
   }
 
   move() {
+    if (this.done) return
     const pixels = this.colorManager.pixels
-    const cGrid = this.colorManager.cGrid
+    const crackGrid = this.colorManager.crackGrid
 
     // bound check
-    const z = 0.33
-    const cx = (this.x + random(-z, z, true)) | 0
-    const cy = (this.y + random(-z, z, true)) | 0
-
-    const _dir = (this.t * Math.PI) / 180
-    const _i = (cy * this.stageW + cx) * 4
-
-    // continue cracking
-    this.x += 0.42 * Math.cos(_dir)
-    this.y += 0.42 * Math.sin(_dir)
+    const fuzz = 0.33
+    const cx = (this.x + random(-fuzz, fuzz, true)) | 0
+    const cy = (this.y + random(-fuzz, fuzz, true)) | 0
 
     // draw sand painter
     // this.regionColor()
 
     // draw black crack
-    pixels[_i] = pixels[_i] * 0.9
-    pixels[_i + 1] = pixels[_i + 1] * 0.9
-    pixels[_i + 2] = pixels[_i + 2] * 0.9
+    const lightness = 0.5 // 0 = darker, 1 = lighter
+    const _i = (cy * this.width + cx) * 4
+    pixels[_i] = pixels[_i] * lightness
+    pixels[_i + 1] = pixels[_i + 1] * lightness
+    pixels[_i + 2] = pixels[_i + 2] * lightness
 
-    if (cx >= 0 && cx < this.stageW && cy >= 0 && cy < this.stageH) {
-      // safe to check
-      const i = cy * this.stageW + cx
+    // continue cracking
+    const dir = (this.angle * Math.PI) / 180
+    const stepSize = 0.6
+    this.x += stepSize * Math.cos(dir)
+    this.y += stepSize * Math.sin(dir)
 
-      if (cGrid[i] > 10000 || Math.abs(cGrid[i] - this.t) < 5) {
+    const inBounds = cx >= 0 && cx < this.width && cy >= 0 && cy < this.height
+    if (inBounds) {
+      const i = cy * this.width + cx
+
+      const angle = crackGrid[i]
+      if (angle === null || Math.abs(angle - this.angle) < 5) {
         // continue cracking
-        cGrid[i] = this.t
-      } else if (Math.abs(cGrid[i] - this.t) > 2) {
-        // crack encountered (not self), stop cracking
-        this.findStart()
-        this.makeCrack()
+        crackGrid[i] = this.angle
+      } else if (Math.abs(angle - this.angle) > 2) {
+        // crack encountered (not self), stop
+        this.done = true
+        // this.findStart()
+        // this.makeCrack()
       }
     } else {
-      // out of bounds, stop cracking
-      this.findStart()
-      this.makeCrack()
+      // out of bounds, stop
+      this.done = true
+      // this.findStart()
+      // this.makeCrack()
     }
   }
 

@@ -3,14 +3,14 @@ import { random } from '../lib'
 export class ColorManager {
   public goodColors: number[][]
   public pixels: any
-  public cGrid: any
+  public crackGrid: (number | null)[]
 
   public imgData?: ImageData
 
   constructor() {
     this.goodColors = [[0, 0, 0]]
     this.pixels = []
-    this.cGrid = []
+    this.crackGrid = []
   }
 
   init(ctx: CanvasRenderingContext2D) {

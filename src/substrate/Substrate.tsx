@@ -30,13 +30,19 @@ export const Substrate = () => {
     for (let i = 0; i < totalPixels * 4; i++) {
       colorManager.pixels[i] = 255
     }
+
     for (let i = 0; i < totalPixels; i++) {
-      colorManager.cGrid[i] = 10001
+      colorManager.crackGrid[i] = null
     }
+
+    // seed a few spots for cracks
     for (let k = 0; k < 16; k++) {
       const c = random(0, totalPixels - 1)
-      colorManager.cGrid[c] = random(0, 360)
+      const angle = random(0, 360)
+      colorManager.crackGrid[c] = angle
     }
+
+    // randomly start three cracks
     for (let k = 0; k < 3; k++) {
       makeCrack()
     }
@@ -44,6 +50,11 @@ export const Substrate = () => {
 
   const draw = (ctx: any) => {
     for (let n = 0; n < crackCount; n++) cracks[n].move()
+    if (random(0, 25) === 1) {
+      for (let k = 0; k < crackCount / 2; k++) {
+        makeCrack()
+      }
+    }
     ctx.putImageData(colorManager.imgData, 0, 0)
   }
 

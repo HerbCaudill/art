@@ -21,9 +21,7 @@ export const useCanvas = (props: CanvasComponentProps) => {
 
     render()
 
-    const cleanup = () => {
-      window.cancelAnimationFrame(animationFrameId)
-    }
+    const cleanup = () => window.cancelAnimationFrame(animationFrameId)
 
     return cleanup
   }, [draw, setup])
