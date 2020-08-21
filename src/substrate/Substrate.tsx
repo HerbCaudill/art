@@ -1,62 +1,57 @@
 ﻿import React from 'react'
 import { Canvas, random } from '../lib'
-import { ColorManager } from './ColorManager'
-import Crack from './Crack'
+
+const TAU = 2 * Math.PI
+
+const step = 0.5
+const seedCount = 3
 
 export const Substrate = () => {
-  const colorManager = new ColorManager()
-  const maxCracks = 200
-  let width = window.innerWidth
-  let height = window.innerHeight
-  const totalPixels = width * height
+  const width = window.innerWidth
+  const height = window.innerHeight
 
-  let crackCount = 0
-  let cracks = [] as Crack[]
+  const cracks: Crack[] = []
 
-  function makeCrack() {
-    if (crackCount < maxCracks) {
-      cracks[crackCount] = new Crack(colorManager, width, height, makeCrack)
-      crackCount++
+  const newCrack = () => {
+    if (cracks.length <= seedCount) {
+      // pick a random spot on the canvas
+      const pos: Position = {
+        x: random(0, width),
+        y: random(0, height),
+      }
+      // pick a random angle
+      const angle = random(0, TAU, true)
+    } else {
+      // pick a random spot along an existing crack
+      const crack = pickRandom(cracks)
+      const length = random(0, crack.length, true)
     }
   }
+
+  const extendCrack = (crack: Crack) => {}
 
   const setup = (ctx: any) => {
-    // fill with white
-    ctx.fillStyle = '#FFF'
-    ctx.fillRect(0, 0, width, height)
-
-    colorManager.init(ctx)
-
-    for (let i = 0; i < totalPixels * 4; i++) {
-      colorManager.pixels[i] = 255
-    }
-
-    for (let i = 0; i < totalPixels; i++) {
-      colorManager.crackGrid[i] = null
-    }
-
-    // seed a few spots for cracks
-    for (let k = 0; k < 16; k++) {
-      const c = random(0, totalPixels - 1)
-      const angle = random(0, 360)
-      colorManager.crackGrid[c] = angle
-    }
-
-    // randomly start three cracks
-    for (let k = 0; k < 3; k++) {
-      makeCrack()
-    }
+    newCrack()
   }
 
-  const draw = (ctx: any) => {
-    for (let n = 0; n < crackCount; n++) cracks[n].move()
-    if (random(0, 25) === 1) {
-      for (let k = 0; k < crackCount / 2; k++) {
-        makeCrack()
-      }
-    }
-    ctx.putImageData(colorManager.imgData, 0, 0)
+  const draw = (ctx: CanvasRenderingContext2D, frameCount: number) => {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+    cracks.forEach(extendCrack)
   }
 
   return <Canvas setup={setup} draw={draw} width={width} height={height} />
 }
+
+interface Position {
+  x: number
+  y: number
+}
+
+interface Crack {
+  start: Position
+  angle: number
+  length: number
+  complete: boolean
+}
+
+const pickRandom = (arr: any[]) => arr[random(0, arr.length - 1)]
