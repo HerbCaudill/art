@@ -1,108 +1,150 @@
-﻿import React from 'react'
-import { Canvas, random } from '../lib'
-import { Crack, Position } from '../types'
+﻿import React, { useState, useEffect } from 'react'
+import { random } from '../lib'
 import { TAU } from '../lib/constants'
-import { findIntersection } from '../lib/findIntersection'
 import { distance } from '../lib/distance'
+import { findIntersection } from '../lib/findIntersection'
+import { Crack, Position } from '../types'
+import { doIntersect } from '../lib/doIntersect'
 
 // parameters
-const STEP = 5
-const SEED_COUNT = 10
+const STEP = 10
+const SEED_COUNT = 20
 const NEW_CRACK_FREQUENCY = 1
 const WOBBLE = 3
 
 const BACKGROUND = 'white'
-const COLOR = 'rgba(0,0,255,.5)'
+const COLOR = 'rgba(0,0,255,1)'
 const WEIGHT = 2
 
+const width = window.innerWidth
+const height = window.innerHeight
+
+const initialCracks: Crack[] = []
 export const Substrate = () => {
-  const width = window.innerWidth
-  const height = window.innerHeight
+  const [cracks, setCracks] = useState(initialCracks)
 
-  const setup = (ctx: any) => {
-    ctx.strokeStyle = COLOR
-    ctx.lineWidth = WEIGHT
-  }
+  useEffect(() => {
+    let frameCount = 0
+    let animationFrameId: number
 
-  // start with 4 edges as "cracks"
-  const cracks: Crack[] = [
-    { start: { x: 0, y: 0 }, angle: 0, length: width },
-    { start: { x: 0, y: 0 }, angle: TAU / 4, length: height },
-    { start: { x: 0, y: height }, angle: 0, length: width },
-    { start: { x: width, y: 0 }, angle: TAU / 4, length: height },
-  ]
+    window.requestAnimationFrame(update)
+    const cleanup = () => window.cancelAnimationFrame(animationFrameId)
+    return cleanup
+  }, [])
 
-  const newCrack = () => {
-    let start: Position
-    let angle: number
-    if (cracks.length < SEED_COUNT) {
-      // pick a random spot on the canvas
-      start = { x: random.integer(0, width), y: random.integer(0, height) }
-      // pick a random angle
-      angle = random.angle()
-      return [{ start, angle, length: STEP }]
-    } else {
-      // pick a random spot along an existing crack
-      const existingCrack = random.pick(cracks)
-      start = randomPointOnCrack(existingCrack)
-      // set angle to be roughly perpendicular to the existing crack's angle
-      angle = kindaPerpendicular(existingCrack.angle)
-      return [{ start, angle, length: STEP }]
-    }
-  }
-
-  const extendCrack = (crack: Crack) => {
-    const { start, angle, length, complete } = crack
-
-    // only extend active cracks
-    if (!complete) {
-      const end: Position = getEnd(crack) // the current endpoint of the crack
-      const newEnd: Position = getEnd({ start, angle, length: length + STEP }) // the endpoint if we extend the crack
-
-      // check to see if the extended crack would cross another crack
-      const willIntersect = cracks.find((other) => {
-        if (other.start === crack.start) return false // don't intersect with ourselves
-
-        const otherStart = other.start
-        const otherEnd = getEnd(other)
-        const intersection = findIntersection(end, newEnd, otherStart, otherEnd)
-        if (intersection) {
-          crack.length = distance(start, intersection)
-          crack.complete = true
+  const update = () => {
+    setCracks((prev) => {
+      const newCrack = () => {
+        let start: Position
+        let angle: number
+        if (prev.length < SEED_COUNT) {
+          // pick a random spot on an edge
+          start = random.pick([
+            { x: random.pick([0, width]), y: random.integer(0, height) }, // on horizontal edge
+            { x: random.integer(0, width), y: random.pick([0, height]) }, // on vertical edge
+          ])
+          angle = random.angle()
+        } else {
+          // pick a random spot on an existing crack
+          const existingCrack = random.pick(prev)
+          start = randomPointOnCrack(existingCrack)
+          // set angle to be roughly perpendicular to the existing crack's angle
+          angle = kindaPerpendicular(existingCrack.angle)
         }
+        return { start, angle, length: STEP }
+      }
 
-        return !!intersection
-      })
+      const extendCrack = (crack: Crack) => {
+        let { start, angle, length, complete } = crack
 
-      if (!willIntersect && isInBounds(newEnd, width, height))
-        crack.length += STEP
-    }
+        // only extend active cracks
+        if (!complete) {
+          const end: Position = getEnd(crack) // the current endpoint of the crack
+          const newEnd: Position = getEnd({
+            start,
+            angle,
+            length: length + STEP,
+          }) // the endpoint if we extend the crack
+
+          // check to see if we're in bounds
+          const outOfBounds = !isInBounds(newEnd, width, height)
+
+          // check to see if the extended crack would cross another crack
+          const intersectingCracks = prev.filter((other) => {
+            if (other.start === crack.start) return false // don't intersect with ourselves
+
+            const otherStart = other.start
+            const otherEnd = getEnd(other)
+            return doIntersect(end, newEnd, otherStart, otherEnd)
+          })
+
+          if (intersectingCracks.length > 0) {
+            const intersections = intersectingCracks
+              .map((other) => {
+                const otherStart = other.start
+                const otherEnd = getEnd(other)
+                return findIntersection(
+                  end,
+                  newEnd,
+                  otherStart,
+                  otherEnd
+                ) as Position
+              })
+              .sort((a, b) => distance(b, newEnd) - distance(a, newEnd))
+            const closestIntersection = intersections[0]
+            length = distance(closestIntersection, start)
+            complete = true
+          } else if (outOfBounds) {
+            complete = true
+          } else {
+            length += STEP
+          }
+          return { start, angle, length, complete }
+        } else {
+          return crack
+        }
+      }
+
+      // extend each crack
+      let updatedCracks = prev.map(extendCrack)
+
+      // maybe start some new cracks
+      if (random.probability(NEW_CRACK_FREQUENCY))
+        updatedCracks.push(newCrack())
+
+      return updatedCracks
+    })
+    window.requestAnimationFrame(update)
   }
 
-  const draw = (ctx: CanvasRenderingContext2D, frameCount: number) => {
-    // extend each crack
-    cracks.forEach(extendCrack)
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}>
+        <rect
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          style={{ fill: BACKGROUND }}
+        />
 
-    // maybe start some new cracks
-    if (random.probability(NEW_CRACK_FREQUENCY)) cracks.push(...newCrack())
-
-    // clear canvas
-    ctx.fillStyle = BACKGROUND
-    ctx.fillRect(0, 0, width, height)
-
-    // render each crack
-    const renderCrack = ({ start, angle, length }: Crack): void => {
-      const end = getEnd({ start, angle, length })
-
-      ctx.beginPath()
-      ctx.moveTo(start.x, start.y)
-      ctx.lineTo(end.x, end.y)
-      ctx.stroke()
-    }
-    cracks.forEach(renderCrack)
-  }
-
-  return <Canvas setup={setup} draw={draw} width={width} height={height} />
+        {cracks.map((crack, i) => {
+          const { start, angle, length } = crack
+          const end = getEnd({ start, angle, length })
+          return (
+            <line
+              key={i}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              style={{ stroke: COLOR, strokeWidth: WEIGHT }}
+            ></line>
+          )
+        })}
+      </svg>
+    </div>
+  )
 }
 
 const kindaPerpendicular = (angle: number) => {

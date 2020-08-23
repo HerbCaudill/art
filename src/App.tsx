@@ -1,4 +1,4 @@
-import { Substrate } from './substrate-canvas/Substrate'
+import { Substrate } from './substrate/Substrate'
 import React from 'react'
 import './App.css'
 

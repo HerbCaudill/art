@@ -9,3 +9,7 @@ export interface Crack {
   length: number
   complete?: boolean
 }
+
+export interface CrackMap {
+  [k: string]: Crack
+}
