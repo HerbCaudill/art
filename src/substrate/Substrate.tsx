@@ -24,20 +24,16 @@ export const Substrate = () => {
   const [cracks, setCracks] = useState(initialCracks)
 
   useEffect(() => {
-    let frameCount = 0
-    let animationFrameId: number
-
-    window.requestAnimationFrame(update)
-    const cleanup = () => window.cancelAnimationFrame(animationFrameId)
-    return cleanup
+    const animationFrameId = window.requestAnimationFrame(update)
+    return () => window.cancelAnimationFrame(animationFrameId)
   }, [])
 
   const update = () => {
-    setCracks((prev) => {
+    setCracks((cracks) => {
       const newCrack = () => {
         let start: Position
         let angle: number
-        if (prev.length < SEED_COUNT) {
+        if (cracks.length < SEED_COUNT) {
           // pick a random spot on an edge
           start = random.pick([
             { x: random.pick([0, width]), y: random.integer(0, height) }, // on horizontal edge
@@ -46,7 +42,7 @@ export const Substrate = () => {
           angle = random.angle()
         } else {
           // pick a random spot on an existing crack
-          const existingCrack = random.pick(prev)
+          const existingCrack = random.pick(cracks)
           start = randomPointOnCrack(existingCrack)
           // set angle to be roughly perpendicular to the existing crack's angle
           angle = kindaPerpendicular(existingCrack.angle)
@@ -70,7 +66,7 @@ export const Substrate = () => {
           const outOfBounds = !isInBounds(newEnd, width, height)
 
           // check to see if the extended crack would cross another crack
-          const intersectingCracks = prev.filter((other) => {
+          const intersectingCracks = cracks.filter((other) => {
             if (other.start === crack.start) return false // don't intersect with ourselves
 
             const otherStart = other.start
@@ -106,13 +102,12 @@ export const Substrate = () => {
       }
 
       // extend each crack
-      let updatedCracks = prev.map(extendCrack)
+      cracks = cracks.map(extendCrack)
 
       // maybe start some new cracks
-      if (random.probability(NEW_CRACK_FREQUENCY))
-        updatedCracks.push(newCrack())
+      if (random.probability(NEW_CRACK_FREQUENCY)) cracks.push(newCrack())
 
-      return updatedCracks
+      return cracks
     })
     window.requestAnimationFrame(update)
   }
