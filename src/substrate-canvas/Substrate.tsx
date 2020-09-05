@@ -1,6 +1,6 @@
 ﻿import React from 'react'
 import { Canvas, random } from '../lib'
-import { Crack, Position } from '../types'
+import { Crack, Point } from '../types'
 import { TAU } from '../lib/constants'
 import { findIntersection } from '../lib/findIntersection'
 import { distance } from '../lib/distance'
@@ -33,7 +33,7 @@ export const Substrate = () => {
   ]
 
   const newCrack = () => {
-    let start: Position
+    let start: Point
     let angle: number
     if (cracks.length < SEED_COUNT) {
       // pick a random spot on the canvas
@@ -56,8 +56,8 @@ export const Substrate = () => {
 
     // only extend active cracks
     if (!complete) {
-      const end: Position = getEnd(crack) // the current endpoint of the crack
-      const newEnd: Position = getEnd({ start, angle, length: length + STEP }) // the endpoint if we extend the crack
+      const end: Point = getEnd(crack) // the current endpoint of the crack
+      const newEnd: Point = getEnd({ start, angle, length: length + STEP }) // the endpoint if we extend the crack
 
       // check to see if the extended crack would cross another crack
       const willIntersect = cracks.find((other) => {
@@ -74,7 +74,7 @@ export const Substrate = () => {
         return !!intersection
       })
 
-      const isInBounds = (pos: Position) =>
+      const isInBounds = (pos: Point) =>
         pos.x >= 0 && pos.y >= 0 && pos.x <= width && pos.y <= height
 
       if (!willIntersect && isInBounds(newEnd)) crack.length += STEP
@@ -122,7 +122,7 @@ const randomPointOnCrack = (crack: Crack) => {
   }
 }
 
-const getEnd = ({ start, angle, length }: Crack): Position => ({
+const getEnd = ({ start, angle, length }: Crack): Point => ({
   x: start.x + Math.cos(angle) * length,
   y: start.y + Math.sin(angle) * length,
 })

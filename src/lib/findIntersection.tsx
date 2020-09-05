@@ -1,15 +1,10 @@
 // line intercept math by Paul Bourke http://paulbourke.net/geometry/pointlineplane/
 // Determine the intersection point of two line segments
 
-import { Position } from '../types'
+import { Point } from '../types'
 
 // Return FALSE if the lines don't intersect
-export function findIntersection(
-  p1: Position,
-  q1: Position,
-  p2: Position,
-  q2: Position
-) {
+export function findIntersection(p1: Point, q1: Point, p2: Point, q2: Point) {
   const { x: x1, y: y1 } = p1
   const { x: x2, y: y2 } = q1
   const { x: x3, y: y3 } = p2
@@ -39,5 +34,5 @@ export function findIntersection(
   let x = x1 + ua * (x2 - x1)
   let y = y1 + ua * (y2 - y1)
 
-  return { x, y }
+  return { x, y } as Point
 }

@@ -1,4 +1,4 @@
-import { Position } from '../types'
+import { Point } from '../types'
 
 export enum Orientation {
   COLINEAR,
@@ -9,7 +9,7 @@ export enum Orientation {
 /**
  * Given three colinear points p, q, r, the function checks if point q lies on line segment 'pr'
  */
-const onSegment = (p: Position, q: Position, r: Position) => {
+const onSegment = (p: Point, q: Point, r: Point) => {
   if (
     q.x <= Math.max(p.x, r.x) &&
     q.x >= Math.min(p.x, r.x) &&
@@ -29,7 +29,7 @@ const onSegment = (p: Position, q: Position, r: Position) => {
  * 1 --> Clockwise
  * 2 --> Counterclockwise
  */
-const orientation = (p: Position, q: Position, r: Position) => {
+const orientation = (p: Point, q: Point, r: Point) => {
   const val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y)
   if (val === 0) return Orientation.COLINEAR
   return val > 0 ? Orientation.CLOCKWISE : Orientation.COUNTERCLOCKWISE
@@ -38,12 +38,7 @@ const orientation = (p: Position, q: Position, r: Position) => {
 /**
  *  The main function that returns true if line segment 'p1q1' and 'p2q2' intersect.
  */
-export const doIntersect = (
-  p1: Position,
-  q1: Position,
-  p2: Position,
-  q2: Position
-) => {
+export const doIntersect = (p1: Point, q1: Point, p2: Point, q2: Point) => {
   // Find the four orientations needed for general and
   // special cases
   const o1 = orientation(p1, q1, p2)
