@@ -6,7 +6,7 @@ import { findIntersection } from '../lib/findIntersection'
 import { distance } from '../lib/distance'
 
 // parameters
-const STEP = 5
+const STEP = 10
 const SEED_COUNT = 10
 const NEW_CRACK_FREQUENCY = 1
 const WOBBLE = 3

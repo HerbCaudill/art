@@ -1603,6 +1603,11 @@
     "@types/prop-types" "*"
     csstype "^3.0.2"
 
+"@types/seed-random@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@types/seed-random/-/seed-random-2.2.0.tgz#38a1acb76ba12cc79b98cfa77962773d3ff0764c"
+  integrity sha512-cQzmJjnYeGTZ6yrSljKUpBXim39c9cRwpTFArZzSdD3Jp5G1Le4YS+OUxf0KaI3AD+DRaSzDV0NH13U1N6CZ3g==
+
 "@types/stack-utils@^1.0.1":
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/@types/stack-utils/-/stack-utils-1.0.1.tgz#0a851d3bd96498fa25c33ab7278ed3bd65f06c3e"
@@ -9157,6 +9162,11 @@ schema-utils@^2.6.6:
     "@types/json-schema" "^7.0.4"
     ajv "^6.12.2"
     ajv-keywords "^3.4.1"
+
+seed-random@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/seed-random/-/seed-random-2.2.0.tgz#2a9b19e250a817099231a5b99a4daf80b7fbed54"
+  integrity sha1-KpsZ4lCoFwmSMaW5mk2vgLf77VQ=
 
 select-hose@^2.0.0:
   version "2.0.0"

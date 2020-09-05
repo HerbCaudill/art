@@ -8,6 +8,8 @@ export const Svg = (props: SvgProps) => {
     setup,
     width = 100,
     height = 100,
+    background,
+    children,
     ...rest
   } = props
   const svgRef = useSvg({ draw, setup, done })
@@ -18,7 +20,16 @@ export const Svg = (props: SvgProps) => {
       height={height}
       ref={svgRef}
       {...rest}
-    />
+    >
+      <rect
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        style={{ fill: background }}
+      />
+      {children}
+    </svg>
   )
 }
 
@@ -33,4 +44,6 @@ export interface SvgComponentProps {
   setup?: () => void
 }
 
-export interface SvgProps extends SvgNativeProps, SvgComponentProps {}
+export interface SvgProps extends SvgNativeProps, SvgComponentProps {
+  background: string
+}
