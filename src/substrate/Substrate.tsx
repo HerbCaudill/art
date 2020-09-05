@@ -10,6 +10,7 @@ import { ascending } from '../lib/ascending'
 import { polarToXY } from '../lib/polarToXY'
 import { isInBounds } from '../lib/isInBounds'
 import { kindaPerpendicular } from '../lib/kindaPerpendicular'
+import { byDistanceTo } from '../lib/byDistanceTo'
 
 const width = window.innerWidth
 const height = window.innerHeight
@@ -22,12 +23,12 @@ const height = window.innerHeight
 // ]
 
 export const Substrate: React.FunctionComponent<SubstrateProps> = ({
-  step = 50,
-  seeds = 4,
-  newCracks = 30,
-  initialWobbleDegrees = 20,
-  wobbleDegrees = 2,
-  maxCracks = 10000,
+  step = 150,
+  seedCount = 4,
+  newCracksPerCycle = 30,
+  unanchoredWobbleDegrees = 20,
+  wobbleDegrees = 3,
+  maxCracks = 1000,
   minMargin = 30,
   background = '#fff',
   color = 'rgba(0,0,0,1)',
@@ -37,131 +38,23 @@ export const Substrate: React.FunctionComponent<SubstrateProps> = ({
   const [cracks, setCracks] = useState<Crack[]>(initialCracks)
   const [done, setDone] = useState<boolean>(false)
 
-  const extendCrack = (cracks: Crack[], crack: Crack) => {
-    let { start, angle, length, complete } = crack
-
-    // only extend active cracks
-    if (!complete) {
-      const end = polarToXY(crack) // the current endpoint of the crack
-      const newEnd = polarToXY({ start, angle, length: length + step }) // the endpoint if we extend the crack
-
-      // check to see if the extended crack would cross another crack
-      const intersectingCracks = cracks.filter((other) => {
-        if (other.start === crack.start) return false // don't intersect with ourselves
-
-        const otherStart = other.start
-        const otherEnd = polarToXY(other)
-        return doIntersect(end, newEnd, otherStart, otherEnd)
-      })
-
-      if (intersectingCracks.length > 0) {
-        // at least one intersection coming up
-        const intersections = intersectingCracks
-          .map((other) => {
-            const otherStart = other.start
-            const otherEnd = polarToXY(other)
-            return findIntersection(end, newEnd, otherStart, otherEnd) as Point
-          })
-          .sort((a, b) => distance(b, newEnd) - distance(a, newEnd))
-
-        // extend to the closest intersection
-        const closestIntersection = intersections[0]
-        length = distance(closestIntersection, start)
-
-        // stop cracking
-        complete = true
-      } else if (!isInBounds(newEnd, width, height, step)) {
-        // out of bounds; stop cracking
-        complete = true
-      } else {
-        // keep cracking
-        length += step
-      }
-      return { ...crack, length, complete }
-    } else {
-      return crack
-    }
-  }
-
-  const allComplete = (cracks: Crack[]) =>
-    !cracks.some((crack) => crack.complete !== true)
-
-  const randomPointOnCrack = (crack: Crack, cracks: Crack[]): Point => {
-    const { start, angle, length } = crack
-    let attempts = 0
-    // find a point on this crack that is not uncomfortably close to other points on this crack
-    while (true) {
-      const linearPosition = random.decimal(0, length) // distance from crack start
-      const point: Point = {
-        x: start.x + Math.cos(angle) * linearPosition,
-        y: start.y + Math.sin(angle) * linearPosition,
-      }
-      const siblingCracks = cracks.filter((c) => c.parent === crack)
-      const closestSibling = siblingCracks
-        .map((c) => distance(c.start, point))
-        .sort(ascending)[0]
-
-      if (
-        attempts++ > 100 ||
-        closestSibling === undefined ||
-        closestSibling > minMargin
-      )
-        return point
-    }
-  }
-
-  const newCrack = (cracks: Crack[]) => {
-    if (cracks.length < seeds) {
-      // pick a random spot on an edge
-      // const start = random.pick([
-      //   { x: random.pick([0, width]), y: random.integer(0, height) }, // on horizontal edge
-      //   { x: random.integer(0, width), y: random.pick([0, height]) }, // on vertical edge
-      // ])
-      const start = {
-        x: random.integer(0, width),
-        y: random.integer(0, height),
-      }
-      const angle = kindaPerpendicular(
-        (random.integer(0, 7) * TAU) / 4,
-        initialWobbleDegrees
-      )
-      return { start, angle, length: minMargin * 2 + 1, parent: undefined }
-    } else {
-      // pick a random spot on an existing crack
-      const parent = random.pick(
-        cracks.filter((c) => c.length > minMargin * 2)
-      ) as Crack
-      const start = randomPointOnCrack(parent, cracks)
-      // set angle to be roughly perpendicular to the existing crack's angle
-      const angle = kindaPerpendicular(parent.angle, wobbleDegrees)
-      console.groupEnd()
-
-      return { start, angle, length: 1, parent }
-    }
-  }
-
   const draw = (f: number) => {
     setCracks((cracks) => {
-      if (!done) {
-        // extend each crack
-        cracks = [...cracks]
-        for (let i = 0; i < cracks.length; i++) {
-          cracks[i] = extendCrack(cracks, cracks[i])
-        }
+      // extend each crack
+      cracks = extendEach(cracks, step)
 
-        // cracks = cracks.reduce(
-        //   (newCracks, crack) => newCracks.concat(extendCrack(newCracks, crack)),
-        //   [] as Crack[]
-        // )
-
-        // maybe start some new cracks
-        if (cracks.length >= maxCracks) {
-          if (allComplete(cracks)) setDone(true)
-        } else {
-          for (let i = 0; i < newCracks; i++) {
-            cracks.push(newCrack(cracks))
-          }
-        }
+      // have we made enough cracks?
+      if (cracks.length < maxCracks) {
+        // nope, make more
+        for (let i = 0; i < newCracksPerCycle; i++)
+          cracks.push(
+            cracks.length < seedCount
+              ? unanchoredCrack(unanchoredWobbleDegrees, minMargin)
+              : anchoredCrack(cracks, minMargin, wobbleDegrees)
+          )
+      } else {
+        // check whether we're done drawing all outstanding cracks
+        if (allComplete(cracks)) setDone(true)
       }
       return cracks
     })
@@ -193,11 +86,126 @@ export const Substrate: React.FunctionComponent<SubstrateProps> = ({
   )
 }
 
+const extendEach = (_cracks: Crack[], step: number) => {
+  const cracks = [..._cracks]
+  for (const i in cracks) cracks[i] = extendCrack(cracks, cracks[i], step)
+  return cracks
+}
+
+const extendCrack = (cracks: Crack[], crack: Crack, step: number) => {
+  const { start, angle } = crack // these never change
+  let { length, complete } = crack // these are what we are
+
+  // only extend active cracks
+  if (complete) return crack
+
+  const end = polarToXY(crack) // the current endpoint of the crack
+  const newEnd = polarToXY({ start, angle, length: length + step }) // the endpoint if we extend the crack
+
+  // check to see if the extended crack would cross another crack
+  const crackIntersectsWithExtension = (other: Crack): boolean => {
+    // don't intersect with ourselves
+    if (other.start === crack.start) return false
+
+    const otherStart = other.start
+    const otherEnd = polarToXY(other)
+    return doIntersect(end, newEnd, otherStart, otherEnd)
+  }
+
+  const intersectingCracks = cracks.filter(crackIntersectsWithExtension)
+
+  if (intersectingCracks.length > 0) {
+    // at least one intersection coming up; find the closest one
+    const closestIntersection = intersectingCracks
+      .map((other) => {
+        const otherStart = other.start
+        const otherEnd = polarToXY(other)
+        return findIntersection(end, newEnd, otherStart, otherEnd) as Point
+      })
+      .sort(byDistanceTo(newEnd))[0]
+
+    // extend to the closest intersection & stop cracking
+    length = distance(closestIntersection, start)
+    complete = true
+  } else if (!isInBounds(newEnd, width, height, step)) {
+    // out of bounds; stop cracking
+    complete = true
+  } else {
+    // keep cracking
+    length += step
+  }
+  return { ...crack, length, complete }
+}
+
+const allComplete = (cracks: Crack[]) =>
+  !cracks.some((crack) => crack.complete !== true)
+
+const randomPointOnCrack = (
+  crack: Crack,
+  cracks: Crack[],
+  minMargin: number
+): Point => {
+  const { start, angle, length } = crack
+  let attempts = 0
+  // find a point on this crack that is not uncomfortably close to other points on this crack
+  while (true) {
+    const linearPosition = random.decimal(0, length) // distance from crack start
+    const point: Point = {
+      x: start.x + Math.cos(angle) * linearPosition,
+      y: start.y + Math.sin(angle) * linearPosition,
+    }
+    const siblingCracks = cracks.filter((c) => c.parent === crack)
+    const closestSibling = siblingCracks
+      .map((c) => distance(c.start, point))
+      .sort(ascending)[0]
+
+    if (
+      attempts++ > 100 ||
+      closestSibling === undefined ||
+      closestSibling > minMargin
+    )
+      return point
+  }
+}
+
+const unanchoredCrack = (
+  unanchoredWobbleDegrees: number,
+  minMargin: number
+) => {
+  const start = {
+    x: random.integer(0, width),
+    y: random.integer(0, height),
+  }
+  const angle = kindaPerpendicular(
+    (random.integer(0, 7) * TAU) / 4,
+    unanchoredWobbleDegrees
+  )
+  return { start, angle, length: minMargin * 2 + 1, parent: undefined }
+}
+
+const anchoredCrack = (
+  cracks: Crack[],
+  minMargin: number,
+  wobbleDegrees: number
+) => {
+  // pick a random crack of suitable length
+  const suitablyLongCracks = cracks.filter((c) => c.length > minMargin * 2)
+  const parent = random.pick(suitablyLongCracks)
+
+  // pick a random point on that crack
+  const start = randomPointOnCrack(parent, cracks, minMargin)
+
+  // set angle to be roughly perpendicular to the existing crack's angle
+  const angle = kindaPerpendicular(parent.angle, wobbleDegrees)
+
+  return { start, angle, length: 1, parent }
+}
+
 interface SubstrateProps {
   step?: number
-  seeds?: number
-  newCracks?: number
-  initialWobbleDegrees?: number
+  seedCount?: number
+  newCracksPerCycle?: number
+  unanchoredWobbleDegrees?: number
   wobbleDegrees?: number
   maxCracks?: number
   minMargin?: number
